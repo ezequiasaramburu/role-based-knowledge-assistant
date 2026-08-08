@@ -13,7 +13,7 @@ type DocumentSummary = Pick<RetrievedDocument, "id" | "title" | "department">;
 
 const NO_AUTHORIZED_INFO_ANSWER = "I don't have authorized information to answer that question.";
 
-function buildSearchQuery(rawQuery: string): string {
+export function buildSearchQuery(rawQuery: string): string {
   const words = rawQuery.match(/[a-zA-Z0-9]+/g) ?? [];
   return words.join(" | ");
 }
@@ -31,7 +31,7 @@ const MIN_RELEVANCE_SCORE = 0.03;
  * sees anything. `roleIds` must always come from the verified JWT (req.user),
  * never from request body/query params.
  */
-async function findPermittedDocuments(roleIds: string[], query: string): Promise<RetrievedDocument[]> {
+export async function findPermittedDocuments(roleIds: string[], query: string): Promise<RetrievedDocument[]> {
   const searchQuery = buildSearchQuery(query);
   const result = await pool.query<RetrievedDocument>(
     `SELECT d.id, d.title, d.department, d.body
