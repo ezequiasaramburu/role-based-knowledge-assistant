@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { pool } from "../db/pool";
 import { requireAuth } from "../middleware/requireAuth";
+import { asyncHandler } from "../middleware/asyncHandler";
 
 export const adminRouter = Router();
 
@@ -14,7 +15,7 @@ interface DocumentRef {
   title: string;
 }
 
-adminRouter.get("/audit-log", async (_req, res) => {
+adminRouter.get("/audit-log", asyncHandler(async (_req, res) => {
   const logResult = await pool.query<{
     id: string;
     user_email: string;
@@ -61,4 +62,4 @@ adminRouter.get("/audit-log", async (_req, res) => {
       createdAt: row.created_at,
     }))
   );
-});
+}));

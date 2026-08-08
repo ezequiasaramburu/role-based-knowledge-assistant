@@ -18,6 +18,11 @@ app.use("/auth", authRouter);
 app.use("/chat", chatRouter);
 app.use("/admin", adminRouter);
 
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error("Unhandled error:", err);
+  res.status(500).json({ error: "Internal server error" });
+});
+
 app.listen(env.port, () => {
   console.log(`Server listening on port ${env.port}`);
 });

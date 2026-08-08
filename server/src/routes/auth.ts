@@ -4,6 +4,7 @@ import { z } from "zod";
 import { pool } from "../db/pool";
 import { signAuthToken } from "../auth/token";
 import { requireAuth } from "../middleware/requireAuth";
+import { asyncHandler } from "../middleware/asyncHandler";
 
 export const authRouter = Router();
 
@@ -12,7 +13,7 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-authRouter.post("/login", async (req, res) => {
+authRouter.post("/login", asyncHandler(async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid email or password format" });
@@ -60,7 +61,7 @@ authRouter.post("/login", async (req, res) => {
       roles: roleResult.rows.map((r) => r.name),
     },
   });
-});
+}));
 
 authRouter.get("/me", requireAuth, (req, res) => {
   res.json({

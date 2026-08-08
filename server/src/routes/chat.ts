@@ -2,6 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import { z } from "zod";
 import { pool } from "../db/pool";
 import { requireAuth } from "../middleware/requireAuth";
+import { asyncHandler } from "../middleware/asyncHandler";
 import { synthesizeAnswer, type RetrievedDocument } from "../llm/openrouter";
 
 export const chatRouter = Router();
@@ -65,7 +66,7 @@ async function recordAuditLog(userId: string, queryText: string, documentIds: st
 }
 
 // IDOR guard: every /sessions/:id route requires the session to belong to the authenticated user.
-async function requireSessionOwnership(req: Request, res: Response, next: NextFunction) {
+const requireSessionOwnership = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const result = await pool.query(
     "SELECT id FROM chat_sessions WHERE id = $1 AND user_id = $2",
     [req.params.id, req.user!.userId]
@@ -74,19 +75,22 @@ async function requireSessionOwnership(req: Request, res: Response, next: NextFu
     return res.status(404).json({ error: "Session not found" });
   }
   next();
-}
-
-chatRouter.post("/sessions", async (req, res) => {
-  const result = await pool.query<{ id: string }>(
-    "INSERT INTO chat_sessions (user_id) VALUES ($1) RETURNING id",
-    [req.user!.userId]
-  );
-  res.status(201).json({ id: result.rows[0].id });
 });
+
+chatRouter.post(
+  "/sessions",
+  asyncHandler(async (req, res) => {
+    const result = await pool.query<{ id: string }>(
+      "INSERT INTO chat_sessions (user_id) VALUES ($1) RETURNING id",
+      [req.user!.userId]
+    );
+    res.status(201).json({ id: result.rows[0].id });
+  })
+);
 
 const messageSchema = z.object({ message: z.string().min(1) });
 
-chatRouter.post("/sessions/:id/messages", requireSessionOwnership, async (req, res) => {
+chatRouter.post("/sessions/:id/messages", requireSessionOwnership, asyncHandler(async (req, res) => {
   const sessionId = req.params.id;
 
   const parsed = messageSchema.safeParse(req.body);
@@ -127,9 +131,9 @@ chatRouter.post("/sessions/:id/messages", requireSessionOwnership, async (req, r
 
   const sources: DocumentSummary[] = candidates.map((d) => ({ id: d.id, title: d.title, department: d.department }));
   res.json({ answer, sources });
-});
+}));
 
-chatRouter.get("/sessions/:id/messages", requireSessionOwnership, async (req, res) => {
+chatRouter.get("/sessions/:id/messages", requireSessionOwnership, asyncHandler(async (req, res) => {
   const sessionId = req.params.id;
 
   const messagesResult = await pool.query<{
@@ -167,4 +171,4 @@ chatRouter.get("/sessions/:id/messages", requireSessionOwnership, async (req, re
       sources: sourcesByMessage.get(m.id) ?? [],
     }))
   );
-});
+}));
