@@ -38,3 +38,44 @@ export async function fetchMe(token: string): Promise<AuthUser> {
   }
   return res.json();
 }
+
+export interface ChatSource {
+  id: string;
+  title: string;
+  department: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: string;
+  sources: ChatSource[];
+}
+
+export async function createChatSession(token: string): Promise<{ id: string }> {
+  const res = await fetch(`${API_URL}/chat/sessions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function sendChatMessage(
+  token: string,
+  sessionId: string,
+  message: string
+): Promise<{ answer: string; sources: ChatSource[] }> {
+  const res = await fetch(`${API_URL}/chat/sessions/${sessionId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ message }),
+  });
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res));
+  }
+  return res.json();
+}

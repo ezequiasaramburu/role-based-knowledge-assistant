@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Login } from "./components/Login";
+import { Chat } from "./components/Chat";
 import { fetchMe, type AuthUser } from "./lib/api";
 
 const TOKEN_STORAGE_KEY = "rbka_token";
@@ -55,7 +56,7 @@ function App() {
         </button>
       </header>
       <main className="app-main">
-        <p>Chat UI coming next.</p>
+        <Chat token={token} />
       </main>
     </div>
   );
