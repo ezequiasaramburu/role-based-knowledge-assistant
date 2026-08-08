@@ -12,6 +12,18 @@ type DocumentSummary = Pick<RetrievedDocument, "id" | "title" | "department">;
 
 const NO_AUTHORIZED_INFO_ANSWER = "I don't have authorized information to answer that question.";
 
+function buildSearchQuery(rawQuery: string): string {
+  const words = rawQuery.match(/[a-zA-Z0-9]+/g) ?? [];
+  return words.join(" | ");
+}
+
+/**
+ * Below this, a match is just incidental word overlap (e.g. an unrelated question
+ * happening to share a common word with the public Employee Handbook), not a real
+ * answer to the question.
+ */
+const MIN_RELEVANCE_SCORE = 0.03;
+
 /**
  * The security model for this whole app lives in this one query: permission
  * filtering happens in the WHERE clause, before ranking, before the LLM ever
@@ -19,6 +31,7 @@ const NO_AUTHORIZED_INFO_ANSWER = "I don't have authorized information to answer
  * never from request body/query params.
  */
 async function findPermittedDocuments(roleIds: string[], query: string): Promise<RetrievedDocument[]> {
+  const searchQuery = buildSearchQuery(query);
   const result = await pool.query<RetrievedDocument>(
     `SELECT d.id, d.title, d.department, d.body
      FROM documents d
@@ -27,10 +40,11 @@ async function findPermittedDocuments(roleIds: string[], query: string): Promise
           SELECT document_id FROM document_permissions
           WHERE role_id = ANY($1::uuid[])
         ))
-       AND d.search_vector @@ plainto_tsquery('english', $2)
-     ORDER BY ts_rank(d.search_vector, plainto_tsquery('english', $2)) DESC
+       AND d.search_vector @@ to_tsquery('english', $2)
+       AND ts_rank(d.search_vector, to_tsquery('english', $2)) > $3
+     ORDER BY ts_rank(d.search_vector, to_tsquery('english', $2)) DESC
      LIMIT 5`,
-    [roleIds, query]
+    [roleIds, searchQuery, MIN_RELEVANCE_SCORE]
   );
   return result.rows;
 }
