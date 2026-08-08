@@ -77,9 +77,71 @@ with SQL injection, prompt injection, forged-JWT, and IDOR attempts — see [NOT
 
 ### Database schema
 
-Defined in [`server/src/db/schema.sql`](server/src/db/schema.sql):
+Full DDL in [`server/src/db/schema.sql`](server/src/db/schema.sql):
 
-- `users`, `roles`, `user_roles` — identity and role assignment
+```mermaid
+erDiagram
+    USERS ||--o{ USER_ROLES : has
+    ROLES ||--o{ USER_ROLES : "assigned via"
+    ROLES ||--o{ DOCUMENT_PERMISSIONS : grants
+    DOCUMENTS ||--o{ DOCUMENT_PERMISSIONS : "restricted via"
+    USERS ||--o{ CHAT_SESSIONS : owns
+    CHAT_SESSIONS ||--o{ CHAT_MESSAGES : contains
+    CHAT_MESSAGES ||--o{ MESSAGE_SOURCES : cites
+    DOCUMENTS ||--o{ MESSAGE_SOURCES : "cited by"
+    USERS ||--o{ AUDIT_LOG : generates
+
+    USERS {
+        uuid id PK
+        text email
+        text password_hash
+        text display_name
+    }
+    ROLES {
+        uuid id PK
+        text name
+    }
+    USER_ROLES {
+        uuid user_id FK
+        uuid role_id FK
+    }
+    DOCUMENTS {
+        uuid id PK
+        text title
+        text body
+        text department
+        text visibility "public or restricted"
+        tsvector search_vector "generated column"
+    }
+    DOCUMENT_PERMISSIONS {
+        uuid document_id FK
+        uuid role_id FK
+    }
+    CHAT_SESSIONS {
+        uuid id PK
+        uuid user_id FK
+    }
+    CHAT_MESSAGES {
+        uuid id PK
+        uuid session_id FK
+        text role "user or assistant"
+        text content
+    }
+    MESSAGE_SOURCES {
+        uuid message_id FK
+        uuid document_id FK
+    }
+    AUDIT_LOG {
+        uuid id PK
+        uuid user_id FK
+        text query_text
+        uuid_array documents_considered
+        uuid_array documents_used
+    }
+```
+
+- `users`, `roles`, `user_roles` — identity and role assignment, deliberately separate concerns (see
+  "Why this shape" below)
 - `documents` — title, body, department, `visibility` (`public` skips permission checks entirely),
   and a generated `tsvector` column for search
 - `document_permissions` — which roles can see a given restricted document (public documents have
@@ -88,6 +150,17 @@ Defined in [`server/src/db/schema.sql`](server/src/db/schema.sql):
   reply, exactly which documents backed it
 - `audit_log` — every retrieval attempt, recording both the documents considered (post-permission-filter
   candidates) and the documents actually used (sent to the LLM), even when the answer was a refusal
+
+**Why this shape**: identity (`users`) and permissions (`roles`/`user_roles`/`document_permissions`)
+are intentionally separate tables rather than, say, a `users.department` column — a user's identity
+never changes, but what they're allowed to see is a many-to-many relationship (Carol has two roles;
+a role can gate many documents). This is also what makes the identity/permissions distinction real in
+code, not just in schema: `server/src/auth/token.ts` resolves `user_roles` once at login and bakes
+role IDs into the JWT, and every downstream permission check (`findPermittedDocuments` in
+`server/src/routes/chat.ts`) reads only those verified role IDs — never the user's identity claim
+directly, and never anything from request input. Full rationale for the rest of the schema's shape
+(why `message_sources` is its own join table, why `audit_log` uses arrays instead of a join table) is
+in [NOTES.md](NOTES.md).
 
 ### API
 
