@@ -3,6 +3,7 @@ import cors from "cors";
 import { env } from "./env";
 import { authRouter } from "./routes/auth";
 import { chatRouter } from "./routes/chat";
+import { adminRouter } from "./routes/admin";
 
 const app = express();
 
@@ -15,6 +16,7 @@ app.get("/health", (_req, res) => {
 
 app.use("/auth", authRouter);
 app.use("/chat", chatRouter);
+app.use("/admin", adminRouter);
 
 app.listen(env.port, () => {
   console.log(`Server listening on port ${env.port}`);
