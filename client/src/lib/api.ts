@@ -79,3 +79,27 @@ export async function sendChatMessage(
   }
   return res.json();
 }
+
+export interface AuditDocumentRef {
+  id: string;
+  title: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  userEmail: string;
+  queryText: string;
+  documentsConsidered: AuditDocumentRef[];
+  documentsUsed: AuditDocumentRef[];
+  createdAt: string;
+}
+
+export async function fetchAuditLog(token: string): Promise<AuditLogEntry[]> {
+  const res = await fetch(`${API_URL}/admin/audit-log`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res));
+  }
+  return res.json();
+}

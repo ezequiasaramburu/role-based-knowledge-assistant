@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
 import { Login } from "./components/Login";
 import { Chat } from "./components/Chat";
+import { AuditLog } from "./components/AuditLog";
 import { fetchMe, type AuthUser } from "./lib/api";
 
 const TOKEN_STORAGE_KEY = "rbka_token";
+
+type View = "chat" | "audit-log";
 
 function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_STORAGE_KEY));
   const [user, setUser] = useState<AuthUser | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [view, setView] = useState<View>("chat");
 
   useEffect(() => {
     if (!token) {
@@ -51,12 +55,28 @@ function App() {
           <strong>{user.displayName}</strong>
           <span className="roles-badge">{user.roles.length ? user.roles.join(", ") : "no roles"}</span>
         </div>
+        <nav className="app-nav">
+          <button
+            type="button"
+            className={view === "chat" ? "app-nav-active" : ""}
+            onClick={() => setView("chat")}
+          >
+            Chat
+          </button>
+          <button
+            type="button"
+            className={view === "audit-log" ? "app-nav-active" : ""}
+            onClick={() => setView("audit-log")}
+          >
+            Audit log
+          </button>
+        </nav>
         <button type="button" onClick={handleLogout}>
           Log out
         </button>
       </header>
       <main className="app-main">
-        <Chat token={token} />
+        {view === "chat" ? <Chat token={token} /> : <AuditLog token={token} />}
       </main>
     </div>
   );
