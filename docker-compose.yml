@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rbka-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rbka
+      POSTGRES_PASSWORD: rbka
+      POSTGRES_DB: rbka
+    ports:
+      - "5432:5432"
+    volumes:
+      - rbka-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  rbka-postgres-data:
